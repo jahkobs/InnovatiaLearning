@@ -64,6 +64,16 @@ const CURRICULUM = {
                     { label: 'The sky is blue.' },
                     { label: 'I like ice cream.' }
                   ]
+                },
+                {
+                  id: 't1-lit-main-idea-a3',
+                  type: 'choice',
+                  prompt: 'Fish live in water. They swim with their fins. What is this about?',
+                  options: [
+                    { label: '🐟 Fish', correct: true },
+                    { label: '🌳 Trees' },
+                    { label: '🚌 Buses' }
+                  ]
                 }
               ]
             },
@@ -150,6 +160,23 @@ const CURRICULUM = {
                   prompt: 'Count the stars. How many?',
                   emoji: '⭐',
                   answer: 9
+                },
+                {
+                  id: 't1-num-count-a3',
+                  type: 'count',
+                  prompt: 'Count the balloons. How many?',
+                  emoji: '🎈',
+                  answer: 5
+                },
+                {
+                  id: 't1-num-count-a4',
+                  type: 'choice',
+                  prompt: 'How many fingers are on ONE hand? 🖐️',
+                  options: [
+                    { label: '5', correct: true },
+                    { label: '4' },
+                    { label: '10' }
+                  ]
                 }
               ]
             },

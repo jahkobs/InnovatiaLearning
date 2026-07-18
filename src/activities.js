@@ -1,10 +1,14 @@
 /*
- * Interactive activity engine.
- * Renders each activity type into the overlay, handles the interaction,
- * gives immediate child-friendly feedback (FR-032), celebrates success
- * with stars/badges (FR-034) and never publicly ranks learners (BR-008).
+ * Interactive activity engine (v2).
+ * Renders each activity type into the overlay, handles the interaction, gives
+ * immediate child-friendly feedback (FR-032), reads prompts aloud, plays gentle
+ * sound effects, celebrates success with stars/badges (FR-034) and never
+ * publicly ranks learners (BR-008).
  *
- * Public API:  Activities.open(subject, topic, onClose)
+ * Public API:
+ *   Activities.open(subject, topic, onClose)     - a fixed topic (array of activities)
+ *   Activities.openPractice(category, onClose)   - endless generated practice
+ *   Activities.close()
  */
 (function () {
   const overlay = document.getElementById('overlay');
@@ -13,13 +17,22 @@
   const progressEl = document.getElementById('activityProgress');
   const celebrateEl = document.getElementById('celebrate');
 
-  let session = null; // { subject, topic, index, onClose }
+  let session = null;
+
+  const CHEERS = ['⭐ Well done!', '🌟 Brilliant!', '🎉 You did it!', '👏 Great job!',
+    '💫 Superstar!', '🙌 Amazing!', '✨ Fantastic!'];
 
   /* --------------------------- session control --------------------------- */
   function open(subject, topic, onClose) {
-    session = { subject, topic, index: 0, onClose };
+    session = { mode: 'topic', subject, topic, index: 0, onClose };
     overlay.classList.remove('hidden');
     renderStep();
+  }
+
+  function openPractice(category, onClose) {
+    session = { mode: 'practice', category, count: 0, correct: 0, onClose };
+    overlay.classList.remove('hidden');
+    nextPractice();
   }
 
   function close() {
@@ -31,26 +44,48 @@
     if (cb) cb();
   }
 
+  /* ------------------------------- topic mode ------------------------------ */
   function renderStep() {
     const { topic, index } = session;
     if (index >= topic.activities.length) return close();
     const activity = topic.activities[index];
-
-    // progress dots
     progressEl.innerHTML = topic.activities
       .map((_, i) => {
         const cls = i < index ? 'done' : i === index ? 'current' : '';
         return `<span class="dot ${cls}"></span>`;
       })
       .join('');
+    renderActivity(activity);
+  }
+  function next() { session.index += 1; renderStep(); }
 
+  /* ------------------------------ practice mode ---------------------------- */
+  function nextPractice() {
+    session.count += 1;
+    session.current = window.Practice.generate(session.category.id);
+    progressEl.innerHTML =
+      `<span class="practice-score">${session.category.icon} ${escapeHtml(session.category.name)}` +
+      ` · Question ${session.count} · Score ${session.correct} ⭐</span>`;
+    renderActivity(session.current);
+  }
+
+  /* --------------------------- render one activity ------------------------- */
+  function renderActivity(activity) {
     bodyEl.innerHTML = '';
     footEl.innerHTML = '';
 
-    const prompt = document.createElement('p');
-    prompt.className = 'activity-prompt';
-    prompt.textContent = activity.prompt;
-    bodyEl.appendChild(prompt);
+    const promptRow = document.createElement('div');
+    promptRow.className = 'prompt-row';
+    const p = document.createElement('p');
+    p.className = 'activity-prompt';
+    p.textContent = activity.prompt;
+    const say = document.createElement('button');
+    say.className = 'read-aloud';
+    say.title = 'Read it to me';
+    say.textContent = '🔊';
+    say.onclick = () => speak(activity.say || activity.prompt, activity.lang || 'en-US');
+    promptRow.append(p, say);
+    bodyEl.appendChild(promptRow);
 
     const holder = document.createElement('div');
     bodyEl.appendChild(holder);
@@ -59,15 +94,12 @@
     const renderer = RENDERERS[activity.type];
     if (renderer) renderer(activity, ctx);
     else holder.textContent = 'Activity type not supported: ' + activity.type;
-  }
 
-  function next() {
-    session.index += 1;
-    renderStep();
+    // Friendly: read the question aloud once, shortly after it appears.
+    setTimeout(() => speak(activity.say || activity.prompt, activity.lang || 'en-US'), 300);
   }
 
   /* --------------------------- shared context --------------------------- */
-  // Every renderer gets this. `solved(correct)` finalises the step.
   function makeContext(activity, holder) {
     let finalized = false;
 
@@ -80,6 +112,7 @@
       }
       fb.textContent = text;
       fb.className = 'feedback ' + (kind || '');
+      if (kind === 'bad') playBad();
     }
 
     function setCheck(label, onCheck) {
@@ -98,51 +131,48 @@
       footEl.querySelectorAll('.btn-check').forEach((b) => b.remove());
       const btn = document.createElement('button');
       btn.className = 'btn-primary btn-next';
-      const last = session.index >= session.topic.activities.length - 1;
-      btn.textContent = last ? '🎉 Finish' : 'Next →';
-      btn.onclick = next;
+      if (session.mode === 'practice') {
+        btn.textContent = 'Next question →';
+        btn.onclick = nextPractice;
+      } else {
+        const last = session.index >= session.topic.activities.length - 1;
+        btn.textContent = last ? '🎉 Finish' : 'Next →';
+        btn.onclick = next;
+      }
       footEl.appendChild(btn);
     }
 
     function solved(correct) {
       if (finalized) return;
       finalized = true;
-      const { firstSolve } = Progress.recordActivity(activity, session.topic.id, correct);
+      let firstSolve = true;
+      if (session.mode === 'practice') {
+        if (correct) session.correct += 1;
+        Progress.recordPractice(session.category.id, correct);
+      } else {
+        firstSolve = Progress.recordActivity(activity, session.topic.id, correct).firstSolve;
+      }
       updateStarBadge();
       if (correct) {
-        feedback(firstSolve ? '⭐ Well done!' : '✔ Correct!', 'good');
-        celebrate();
+        playGood();
+        feedback(pick(CHEERS), 'good');
+        // Bigger celebration every 5th practice answer, or on topic solves.
+        if (session.mode !== 'practice' || session.correct % 5 === 0) celebrate();
+        else miniCelebrate();
         showNext();
       }
     }
 
-    return {
-      holder,
-      activity,
-      feedback,
-      setCheck,
-      solved,
-      speak,
-      // let a renderer reset the finalized flag is not needed; retries handled inline
-      isFinal: () => finalized
-    };
+    return { holder, activity, feedback, setCheck, solved, speak, isFinal: () => finalized };
   }
 
   /* ------------------------------ renderers ------------------------------ */
   const RENDERERS = {
-    choice: renderChoice,
-    phonics: renderPhonics,
-    pattern: renderPattern,
-    count: renderCount,
-    match: renderMatch,
-    order: renderOrder,
-    sort: renderSort,
-    fraction: renderFraction,
-    type: renderType,
-    report: renderReport
+    choice: renderChoice, phonics: renderPhonics, pattern: renderPattern,
+    count: renderCount, match: renderMatch, order: renderOrder, sort: renderSort,
+    fraction: renderFraction, type: renderType, report: renderReport
   };
 
-  // ---- choice / pattern / phonics share option-button behaviour ----
   function renderOptionButtons(options, holder, ctx, extraClass) {
     const grid = document.createElement('div');
     grid.className = 'options ' + (extraClass || '');
@@ -196,7 +226,6 @@
     label.style.margin = '18px 0 10px';
     label.textContent = 'Choose what comes next:';
     ctx.holder.appendChild(label);
-
     renderOptionButtons(activity.options, ctx.holder, ctx);
   }
 
@@ -209,12 +238,10 @@
     btn.onclick = () => speak(activity.say, activity.lang || 'en-US');
     wrap.appendChild(btn);
     ctx.holder.appendChild(wrap);
-    // Auto-play once so the child hears it immediately.
-    setTimeout(() => speak(activity.say, activity.lang || 'en-US'), 350);
+    setTimeout(() => speak(activity.say, activity.lang || 'en-US'), 450);
     renderOptionButtons(activity.options, ctx.holder, ctx);
   }
 
-  // ---- counting ----
   function renderCount(activity, ctx) {
     const tapped = new Set();
     const area = document.createElement('div');
@@ -228,6 +255,7 @@
         if (tapped.has(i)) return;
         tapped.add(i);
         item.classList.add('tapped');
+        playTick();
         const badge = document.createElement('span');
         badge.className = 'badge';
         badge.textContent = tapped.size;
@@ -242,7 +270,6 @@
     hint.textContent = 'Tap each one to count. Then choose the number.';
     ctx.holder.appendChild(hint);
 
-    // Number choices around the answer.
     const answer = activity.answer;
     const set = new Set([answer, answer - 1, answer + 1, answer + 2]);
     const nums = [...set].filter((n) => n > 0).sort((a, b) => a - b);
@@ -250,7 +277,6 @@
     renderOptionButtons(opts, ctx.holder, ctx, 'count-options');
   }
 
-  // ---- matching (tap a left tile, then a right tile) ----
   function renderMatch(activity, ctx) {
     const pairs = activity.pairs;
     const lefts = pairs.map((p, i) => ({ text: p.left, key: i }));
@@ -268,7 +294,7 @@
     function tileClick(tile, side, key) {
       if (tile.classList.contains('matched')) return;
       if (!selected) {
-        if (side !== 'L') return; // start from the left column
+        if (side !== 'L') return;
         selected = { tile, key };
         tile.classList.add('selected');
         return;
@@ -279,13 +305,13 @@
         tile.classList.add('selected');
         return;
       }
-      // side R with a left selected -> evaluate
       if (key === selected.key) {
         selected.tile.classList.remove('selected');
         selected.tile.classList.add('matched');
         tile.classList.add('matched');
         selected = null;
         matchedCount += 1;
+        playTick();
         if (matchedCount === pairs.length) ctx.solved(true);
       } else {
         tile.classList.add('wrong-flash');
@@ -308,20 +334,16 @@
       t.onclick = () => tileClick(t, 'R', r.key);
       colR.appendChild(t);
     });
-
     area.appendChild(colL);
     area.appendChild(colR);
     ctx.holder.appendChild(area);
   }
 
-  // ---- ordering (move items up/down) ----
   function renderOrder(activity, ctx) {
     let order = shuffle(activity.items.slice());
-    // Guard against an accidental already-correct shuffle.
     if (arraysEqual(order, activity.correctOrder) && order.length > 1) {
       order = order.slice().reverse();
     }
-
     const list = document.createElement('div');
     list.className = 'order-list';
     ctx.holder.appendChild(list);
@@ -342,13 +364,13 @@
         up.textContent = '▲';
         up.style.padding = '6px 12px';
         up.disabled = i === 0;
-        up.onclick = () => { swap(i, i - 1); };
+        up.onclick = () => swap(i, i - 1);
         const down = document.createElement('button');
         down.className = 'btn-ghost';
         down.textContent = '▼';
         down.style.padding = '6px 12px';
         down.disabled = i === order.length - 1;
-        down.onclick = () => { swap(i, i + 1); };
+        down.onclick = () => swap(i, i + 1);
         row.append(idx, label, up, down);
         list.appendChild(row);
       });
@@ -356,6 +378,7 @@
     function swap(a, b) {
       if (ctx.isFinal()) return;
       [order[a], order[b]] = [order[b], order[a]];
+      playTick();
       draw();
     }
     draw();
@@ -374,16 +397,13 @@
     });
   }
 
-  // ---- sorting (tap an item, then tap a bin) ----
   function renderSort(activity, ctx) {
     const remaining = shuffle(activity.items.slice());
-    let picked = null; // { item, el }
-
+    let picked = null;
     const source = document.createElement('div');
     source.className = 'sort-source';
     const bins = document.createElement('div');
     bins.className = 'sort-bins';
-
     const binState = {};
     activity.bins.forEach((name) => (binState[name] = []));
 
@@ -394,7 +414,6 @@
       t.onclick = () => {
         if (ctx.isFinal()) return;
         if (picked && picked.el === t) {
-          t.classList.remove('selected');
           t.style.borderColor = '';
           picked = null;
           return;
@@ -405,7 +424,6 @@
       };
       return t;
     }
-
     function drawSource() {
       source.innerHTML = '';
       if (remaining.length === 0) {
@@ -417,14 +435,13 @@
       }
       remaining.forEach((item) => source.appendChild(makeToken(item)));
     }
-
     function drawBins() {
       bins.innerHTML = '';
       activity.bins.forEach((name) => {
         const bin = document.createElement('div');
         bin.className = 'sort-bin';
-        const h = document.createElement('h5');
-        h.textContent = name;
+        const hh = document.createElement('h5');
+        hh.textContent = name;
         const items = document.createElement('div');
         items.className = 'bin-items';
         binState[name].forEach((entry) => {
@@ -436,12 +453,11 @@
             if (ctx.isFinal()) return;
             binState[name] = binState[name].filter((e) => e !== entry);
             remaining.push(entry);
-            drawSource();
-            drawBins();
+            drawSource(); drawBins();
           };
           items.appendChild(tok);
         });
-        bin.appendChild(h);
+        bin.appendChild(hh);
         bin.appendChild(items);
         bin.onclick = () => {
           if (ctx.isFinal() || !picked) return;
@@ -449,34 +465,26 @@
           const idx = remaining.indexOf(picked.item);
           if (idx >= 0) remaining.splice(idx, 1);
           picked = null;
-          drawSource();
-          drawBins();
+          playTick();
+          drawSource(); drawBins();
         };
         bins.appendChild(bin);
       });
     }
-
-    drawSource();
-    drawBins();
+    drawSource(); drawBins();
     ctx.holder.appendChild(source);
     ctx.holder.appendChild(bins);
 
     ctx.setCheck('Check my answer', () => {
-      if (remaining.length > 0) {
-        ctx.feedback('Sort them all first 🙂', 'bad');
-        return;
-      }
+      if (remaining.length > 0) { ctx.feedback('Sort them all first 🙂', 'bad'); return; }
       let allRight = true;
       activity.bins.forEach((name) => {
-        binState[name].forEach((entry) => {
-          if (entry.bin !== name) allRight = false;
-        });
+        binState[name].forEach((entry) => { if (entry.bin !== name) allRight = false; });
       });
       if (allRight) {
         bins.querySelectorAll('.token').forEach((t) => t.classList.add('correct'));
         ctx.solved(true);
       } else {
-        // mark wrong ones and let them fix it
         bins.querySelectorAll('.sort-bin').forEach((binEl, bi) => {
           const name = activity.bins[bi];
           binEl.querySelectorAll('.token').forEach((tok, ti) => {
@@ -489,9 +497,8 @@
     });
   }
 
-  // ---- fractions (pick the picture that shows the target fraction) ----
   function renderFraction(activity, ctx) {
-    const target = activity.target; // '1/2' or '1/4'
+    const target = activity.target;
     const shapes = [
       { frac: '1/2', shaded: [0, 1], parts: 2, shape: 'circle' },
       { frac: '1/4', shaded: [0], parts: 4, shape: 'square' },
@@ -499,11 +506,9 @@
       { frac: '3/4', shaded: [0, 1, 2], parts: 4, shape: 'square' },
       { frac: '2/2', shaded: [0, 1], parts: 2, shape: 'square' }
     ];
-    // Build a choice set: the correct one + 2 distractors.
     const correct = fractionSpec(target);
     const distractors = shuffle(shapes.filter((s) => s.frac !== target)).slice(0, 2);
     const choices = shuffle([correct, ...distractors]);
-
     const grid = document.createElement('div');
     grid.className = 'fraction-grid';
     choices.forEach((spec) => {
@@ -534,12 +539,8 @@
     if (frac === '3/4') return { frac: '3/4', shaded: [0, 1, 2], parts: 4, shape: 'square' };
     return { frac: frac, shaded: [0], parts: 2, shape: 'circle' };
   }
-
-  // Render a simple shaded-fraction picture as inline SVG.
   function fractionSVG(spec) {
-    const fill = '#ED7D31';
-    const empty = '#ffffff';
-    const stroke = '#23324a';
+    const fill = '#ED7D31', empty = '#ffffff', stroke = '#23324a';
     if (spec.shape === 'circle') {
       let paths = '';
       const cx = 60, cy = 60, r = 52;
@@ -554,7 +555,6 @@
       }
       return `<svg viewBox="0 0 120 120">${paths}</svg>`;
     }
-    // square split into vertical strips
     let rects = '';
     const w = 104 / spec.parts;
     for (let i = 0; i < spec.parts; i++) {
@@ -564,7 +564,6 @@
     return `<svg viewBox="0 0 120 120">${rects}</svg>`;
   }
 
-  // ---- typed short response ----
   function renderType(activity, ctx) {
     const input = document.createElement('input');
     input.className = 'type-input';
@@ -584,7 +583,6 @@
     });
   }
 
-  // ---- report scenario (child-safety practice, SEC-010 / CR-009) ----
   function renderReport(activity, ctx) {
     const wrap = document.createElement('div');
     wrap.className = 'report-scenario';
@@ -614,7 +612,7 @@
     ctx.holder.appendChild(wrap);
   }
 
-  /* ------------------------------ helpers ------------------------------ */
+  /* ------------------------------ audio/effects ------------------------------ */
   function speak(text, lang) {
     try {
       if (!('speechSynthesis' in window)) return;
@@ -622,15 +620,39 @@
       const u = new SpeechSynthesisUtterance(text);
       u.lang = lang || 'en-US';
       u.rate = 0.9;
+      u.pitch = 1.05;
       window.speechSynthesis.speak(u);
     } catch (e) { /* audio optional */ }
   }
 
+  let audioCtx = null;
+  function tones(freqs, step, dur, type) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      freqs.forEach((f, i) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type || 'sine';
+        o.frequency.value = f;
+        const t0 = now + i * step;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(t0); o.stop(t0 + dur + 0.02);
+      });
+    } catch (e) { /* audio optional */ }
+  }
+  function playGood() { tones([523.25, 659.25, 783.99], 0.09, 0.16); }        // C-E-G
+  function playBad() { tones([311.13, 246.94], 0.09, 0.16, 'triangle'); }     // gentle down
+  function playTick() { tones([880], 0, 0.06, 'sine'); }
+
   function celebrate() {
-    const emojis = ['🎉', '⭐', '🌟', '✨', '🎈', '🏆'];
+    const emojis = ['🎉', '⭐', '🌟', '✨', '🎈', '🏆', '💫'];
     celebrateEl.classList.remove('hidden');
     celebrateEl.innerHTML = '<div class="burst">🎉</div>';
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 20; i++) {
       const c = document.createElement('span');
       c.className = 'confetti';
       c.textContent = emojis[Math.floor(Math.random() * emojis.length)];
@@ -638,10 +660,12 @@
       c.style.animationDuration = 0.9 + Math.random() * 0.8 + 's';
       celebrateEl.appendChild(c);
     }
-    setTimeout(() => {
-      celebrateEl.classList.add('hidden');
-      celebrateEl.innerHTML = '';
-    }, 1300);
+    setTimeout(() => { celebrateEl.classList.add('hidden'); celebrateEl.innerHTML = ''; }, 1300);
+  }
+  function miniCelebrate() {
+    celebrateEl.classList.remove('hidden');
+    celebrateEl.innerHTML = '<div class="burst" style="font-size:64px">' + pick(['⭐', '🌟', '👏', '✨']) + '</div>';
+    setTimeout(() => { celebrateEl.classList.add('hidden'); celebrateEl.innerHTML = ''; }, 700);
   }
 
   function updateStarBadge() {
@@ -649,6 +673,7 @@
     if (el) el.querySelector('b').textContent = Progress.stars;
   }
 
+  /* ------------------------------- utilities ------------------------------- */
   function shuffle(arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -657,9 +682,11 @@
     }
     return a;
   }
-  function arraysEqual(a, b) {
-    return a.length === b.length && a.every((v, i) => v === b[i]);
+  function arraysEqual(a, b) { return a.length === b.length && a.every((v, i) => v === b[i]); }
+  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  window.Activities = { open, close };
+  window.Activities = { open, openPractice, close };
 })();

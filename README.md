@@ -1,5 +1,17 @@
 # Innovatia Learning — Year 1 Digital Learning Platform (Windows Desktop)
 
+## What’s new in v2.0
+
+- **Child registration** — first-run onboarding registers the child’s name and avatar; the whole app greets them by name.
+- **Adult PIN gate** — the Teacher and Parent areas are protected by a 4–6 digit grown-up PIN (set during onboarding; changeable in ⚙️ Settings).
+- **Practice Zone (unlimited)** — 9 endlessly-generated question games (adding, taking away, counting, bigger number, next number, doubles, rhyming, first letter, French numbers). The questions never run out.
+- **Development report** — a comprehensive + plain-language summary report per child (completion, mastery, strengths, gentle focus areas) that can be **printed**.
+- **Print sample worksheets** — generate printer-friendly activity sheets for paper practice (opens the system print dialog).
+- **Friendlier & more interactive** — read-aloud button on every question, auto voice-over, gentle sound effects, mascot onboarding, avatars and richer celebrations.
+- More questions added across the built-in courses.
+
+---
+
 An **interactive Windows desktop application** for the *Innovatia Digital
 Learning & Curriculum Management Platform*, built from the project
 **Software Requirements Specification** (Year 1, Term 1 & Term 2, 2025/2026).
