@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Content Security Policy: self-contained app, no remote content (SEC / learner safety) -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'" />
+  <title>Innovatia Learning</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ============================= TOP BAR ============================= -->
+  <header class="topbar" id="topbar">
+    <div class="brand">
+      <span class="brand-mark">✦</span>
+      <div class="brand-text">
+        <strong>Innovatia Learning</strong>
+        <span class="brand-sub">Year 1 · 2025/2026</span>
+      </div>
+    </div>
+    <nav class="role-switch" id="roleSwitch" aria-label="Choose view">
+      <button data-role="learner" class="active">🧒 Learner</button>
+      <button data-role="teacher">👩‍🏫 Teacher</button>
+      <button data-role="parent">👪 Parent</button>
+    </nav>
+    <div class="topbar-right">
+      <span class="star-count" id="starCount" title="Stars earned">⭐ <b>0</b></span>
+      <button class="report-btn" id="reportBtn" title="Tell an adult / report something">
+        🚨 Tell an adult
+      </button>
+    </div>
+  </header>
+
+  <!-- ============================= MAIN VIEW ============================= -->
+  <main id="view" class="view"></main>
+
+  <!-- ======================= ACTIVITY OVERLAY ======================= -->
+  <div class="overlay hidden" id="overlay">
+    <div class="activity-card" role="dialog" aria-modal="true">
+      <div class="activity-head">
+        <button class="safe-exit" id="safeExit" title="Go back">← Back</button>
+        <div class="activity-progress" id="activityProgress"></div>
+        <button class="report-btn small" id="reportBtnActivity" title="Tell an adult">🚨</button>
+      </div>
+      <div class="activity-body" id="activityBody"></div>
+      <div class="activity-foot" id="activityFoot"></div>
+    </div>
+  </div>
+
+  <!-- ======================= CELEBRATION LAYER ======================= -->
+  <div class="celebrate hidden" id="celebrate" aria-hidden="true"></div>
+
+  <script src="data/curriculum.js"></script>
+  <script src="progress.js"></script>
+  <script src="activities.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

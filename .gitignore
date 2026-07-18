@@ -1,6 +1,20 @@
+# Dependencies
 node_modules/
-release/
+
+# Build output
 dist/
+out/
+
+# Generated at build time by scripts/make-icon.js
+build/icon.png
+build/icon.ico
+
+# Logs
+npm-debug.log*
 *.log
+
+# OS / editor
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/

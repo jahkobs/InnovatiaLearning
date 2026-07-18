@@ -1,0 +1,60 @@
+name: Build Windows Installer
+
+# Produces the Innovatia Learning Windows desktop installer (.exe, NSIS).
+# Runs on a Windows runner because electron-builder needs Windows to sign and
+# assemble the NSIS installer. The installer is uploaded as a build artifact,
+# and attached to a GitHub Release when a version tag (v*) is pushed.
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Generate application icon
+        run: npm run icon
+
+      - name: Build Windows installer (NSIS)
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: innovatia-learning-windows-installer
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+          if-no-files-found: error
+
+      - name: Attach installer to Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.blockmap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

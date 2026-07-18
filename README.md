@@ -1,77 +1,153 @@
-# Innovatia Learning — Year 1 Desktop Edition
+# Innovatia Learning — Year 1 Digital Learning Platform (Windows Desktop)
 
-An interactive Windows desktop application for the **Innovatia Digital Learning and
-Curriculum Management Platform**, implementing the Year 1 (Terms 1 & 2, Academic Year
-2025/2026) curriculum defined in the project SRS. Built with Electron and packaged as
-a Windows NSIS installer.
+An **interactive Windows desktop application** for the *Innovatia Digital
+Learning & Curriculum Management Platform*, built from the project
+**Software Requirements Specification** (Year 1, Term 1 & Term 2, 2025/2026).
 
-## What's inside
+It packages a rich, child-friendly learning experience as a native Windows
+app with a proper **installer (`.exe`, NSIS)** produced by `electron-builder`.
 
-**33 interactive learning activities** across all seven curriculum subjects from the
-SRS Appendix A catalogue:
+The app icon is generated at build time (a white star on the Innovatia blue
+gradient) by `scripts/make-icon.js` — no binary assets are committed.
 
-| Subject | Examples |
-|---|---|
-| 📚 Literacy | Rhyme Time, phonics listening, sentence types, noun/verb sorting, story sequencing, opposites |
-| 🔢 Numeracy | Counting, number-line ordering, odd/even sorting, patterns, place value, market maths, **Ghanaian Cedi shop**, fractions |
-| 🔬 Science | Living/non-living sorting, five senses, float or sink, push/pull, animal families, habitats, seed life cycle |
-| 🌍 Unit of Inquiry | Compass directions, rights & responsibilities, Kwame Nkrumah and national days, home/school helpers, weather |
-| 💻 ICT | Computer parts, keyboard typing practice, password safety, "tell an adult" digital-safety scenarios |
-| 🇫🇷 French | Bonjour! greetings, counting 0–10, days of the week, family words — with spoken French audio |
-| 🎨 Creative Arts | Kente pattern painting, a free drawing board, tonic solfa ordering, loud/soft sound sorting |
+---
 
-**Interactive mechanics** (SRS FR-029): tap/click choice, tap-to-sequence ordering,
-drag-and-drop sorting (with tap-tap fallback for touch/keyboard access), short typed
-responses, and a free-drawing canvas. Every question can be **read aloud** using
-speech synthesis (FR-030), including French pronunciation with accented characters
-(FR-065).
+## What it does
 
-**Three roles** (SRS section 4):
+Three role experiences from the SRS (Section 4), inside one desktop app:
 
-- 🧒 **Learner** — visual subject home screen, stars, badges, confetti celebrations,
-  gentle "try again" feedback (no fails, no leaderboards — SRS 13.1).
-- 🧑‍🏫 **Teacher** — curriculum coverage dashboard (FR-025), topic catalogue with
-  delivery status, and the safety-report queue. Behind a grown-ups-only gate.
-- 👨‍👩‍👧 **Parent** — plain-language progress summary with practical
-  "help at home" tips (FR-046/FR-047).
+| Role | Experience |
+|------|-----------|
+| 🧒 **Learner** | Simple, visual home screen with only assigned, approved activities. Ten interactive activity types across all seven Year 1 subjects and both terms. Immediate feedback, stars and celebrations. |
+| 👩‍🏫 **Teacher** | Curriculum-coverage and learner-mastery dashboard — coverage bars by subject/term and objective-level mastery (*Secure / Developing / No evidence*). |
+| 👪 **Parent** | Plain-language progress summary for a linked learner with practical "help at home" tips — never comparing learners. |
 
-**Child safety by design** (SRS section 11): a persistent 🚨 **Tell an adult**
-button on every screen (FR-035/SEC-010), reports stored locally for adult review,
-no external navigation from the learner interface, no ads, no public comparison of
-learners, and all progress data kept on the device only.
+### Interactive activity types (the "more interactive content")
 
-## Run in development
+Every activity is **hands-on**, not multiple-choice-only:
+
+| Type | What the learner does | SRS link |
+|------|----------------------|----------|
+| `choice` | Taps the correct picture/word | FR-029 (tap/click) |
+| `count` | Taps each object to count, numbers appear, then picks the total | CR-004 |
+| `match` | Taps a word, then its matching picture | FR-029 (matching) |
+| `order` | Moves items up/down into the right sequence | FR-029 (ordering) |
+| `sort` | Taps an item, then taps the correct category box | FR-029 (drag-and-drop / sorting) |
+| `pattern` | Chooses what comes next in a colour/number pattern | Numeracy patterns |
+| `fraction` | Taps the shaded shape showing ½ or ¼ (inline SVG) | CR-004 |
+| `phonics` | Hears a spoken word/French phrase (speech synthesis) and picks the match | CR-003 (audio-led) |
+| `type` | Types a short response | FR-029 (typed) |
+| `report` | Practises the **"tell a trusted adult"** safe-content flow | CR-009, SEC-010 |
+
+### Child-safety features baked in (SRS Section 11)
+
+- **"Tell an adult" button** on every screen and inside every activity (FR-035, SEC-010).
+- No public leaderboards or learner-to-learner comparison (BR-008).
+- Positive reinforcement only — stars, badges and celebrations (FR-034).
+- **No network access**: strict Content-Security-Policy, sandboxed renderer, and
+  external links blocked/redirected to the system browser (learner containment).
+- Save & resume via local progress store (FR-031).
+
+---
+
+## Curriculum content
+
+Encoded in [`src/data/curriculum.js`](src/data/curriculum.js) directly from the
+SRS **Appendix A** catalogue — data-driven so new terms/topics are configuration,
+not code (NFR-011):
+
+- **Term 1 & Term 2**, Year 1, 2025/2026
+- **7 subjects**: Literacy, Numeracy, Science, Unit of Inquiry, ICT, French, Creative Arts/Arts
+- Full hierarchy: *Term → Subject → Strand → Topic → Learning Objective → Activity* (SRS 3.2)
+
+---
+
+## Project structure
+
+```
+electron/
+  main.js         Desktop window, safe menu, safety-report IPC, link containment
+  preload.js      Minimal secure bridge (contextIsolation)
+src/
+  index.html      App shell (with CSP)
+  styles.css      Child-friendly UI: large targets, high contrast (SRS 13.1)
+  data/curriculum.js   Year 1 curriculum + activity catalogue (from SRS Appendix A)
+  progress.js     Save/resume, stars, objective mastery (FR-031/034/040)
+  activities.js   Interactive activity engine (all 10 types)
+  app.js          Navigation + Learner/Teacher/Parent views
+build/
+  icon.ico / icon.png   App + installer icon
+.github/workflows/
+  build-windows.yml     CI that builds the Windows installer
+```
+
+---
+
+## Building the Windows installer
+
+The installer is built with **`electron-builder`** targeting **NSIS**
+(a customisable `Innovatia-Learning-Setup-<version>.exe` that lets the user
+choose an install directory, and creates Start-menu and desktop shortcuts).
+
+### Option A — automated (recommended)
+
+Push to `main` (or run the workflow manually). The
+[`Build Windows Installer`](.github/workflows/build-windows.yml) GitHub Action
+runs on a **Windows runner**, builds the installer, and uploads it as the
+`innovatia-learning-windows-installer` artifact. Pushing a `v*` tag also
+attaches the installer to a GitHub Release.
+
+### Option B — locally on Windows
+
+```powershell
+npm install
+npm run dist          # -> dist/Innovatia-Learning-Setup-1.0.0.exe
+```
+
+Other targets:
+
+```powershell
+npm run dist:portable # single portable .exe (no install)
+npm run pack          # unpacked app folder (for quick testing)
+```
+
+> `electron-builder` assembles Windows installers on Windows. Build on a Windows
+> machine or use the provided CI. Icons (`build/icon.ico`) are already included.
+
+### Running in development (any OS)
 
 ```bash
 npm install
-npm start
+npm start             # launches the Electron app
 ```
 
-## Build the Windows installer
+---
 
-```bash
-npm install
-npm run dist:win        # produces release/InnovatiaLearning-Setup-<version>.exe
-```
+## Verification
 
-The NSIS installer supports per-user install, a custom install directory, desktop
-and Start-menu shortcuts, and a licence page. A portable build is also available
-with `npm run dist:win:portable`.
+The interactive renderer was exercised end-to-end in Chromium (the same engine
+Electron uses): every activity type was driven to completion — counting, matching,
+ordering, tap-to-sort, patterns, fractions, phonics, the report-safety drill —
+plus star accrual, save/resume, and the Teacher and Parent dashboards, with no
+console errors.
 
-### CI build
+---
 
-`.github/workflows/build-windows-installer.yml` builds the installer on a Windows
-runner on every push (and attaches it to GitHub releases). Download the
-`InnovatiaLearning-Windows-Installer` artifact from the Actions run.
+## Requirements traceability (summary)
 
-## Project layout
+| SRS area | Where implemented |
+|----------|-------------------|
+| Curriculum hierarchy & catalogue (FR-009, Appendix A) | `src/data/curriculum.js` |
+| Learner experience & response types (FR-027–FR-035, CR-001–CR-011) | `src/activities.js` |
+| Save & resume, mastery (FR-031, FR-040) | `src/progress.js` |
+| Positive reinforcement, no ranking (FR-034, BR-008) | `activities.js` (stars/celebrate) |
+| Safe exit & report unsafe content (FR-035, SEC-010) | `app.js`, `main.js` (IPC) |
+| Coverage & mastery reporting (FR-025, FR-054, FR-055, §9) | `app.js` (Teacher view) |
+| Parent plain-language progress (FR-046, FR-047) | `app.js` (Parent view) |
+| Learner containment / no open browsing (SEC, §2.3) | `main.js`, `index.html` CSP |
 
-```
-electron/       main process + preload (sandboxed, context-isolated)
-app/            renderer: index.html, styles, curriculum data, activities, engine
-  js/curriculum-data.js   Year 1 Terms 1 & 2 topic catalogue (SRS Appendix A)
-  js/activities.js        the 33 interactive activities
-  js/app.js               screens, mechanics, progress, speech, safety reports
-build/          installer icon + licence (icon generated by scripts/make_icon.py)
-scripts/        icon generator (pure-Python, no dependencies)
-```
+---
+
+*Built from the Innovatia Learning Platform SRS v1.0. Learning content is
+illustrative for the pilot and must be validated by the academic owner before
+publication (SRS Appendix A note).*

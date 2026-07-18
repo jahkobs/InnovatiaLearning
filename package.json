@@ -1,55 +1,60 @@
 {
-  "name": "innovatia-learning",
-  "productName": "Innovatia Learning",
+  "name": "innovatia-learning-platform",
   "version": "1.0.0",
-  "description": "Innovatia Digital Learning and Curriculum Management Platform - Year 1 interactive desktop edition (Terms 1 & 2, 2025/2026)",
+  "description": "Innovatia Digital Learning & Curriculum Management Platform - Year 1 interactive desktop application",
   "main": "electron/main.js",
-  "author": "Innovatia Learning",
+  "author": "Innovatia",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
-    "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist:win": "electron-builder --win nsis --publish never",
-    "dist:win:portable": "electron-builder --win portable --publish never"
+    "icon": "node scripts/make-icon.js",
+    "start": "node scripts/make-icon.js && electron .",
+    "dist": "node scripts/make-icon.js && electron-builder --win",
+    "dist:portable": "node scripts/make-icon.js && electron-builder --win portable",
+    "pack": "node scripts/make-icon.js && electron-builder --dir"
   },
   "devDependencies": {
-    "electron": "^31.7.7",
+    "electron": "^31.0.0",
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.innovatia.learning",
+    "appId": "org.innovatia.learningplatform",
     "productName": "Innovatia Learning",
-    "copyright": "Copyright © 2026 Innovatia Learning",
+    "copyright": "Copyright © 2026 Innovatia",
     "directories": {
-      "output": "release",
+      "output": "dist",
       "buildResources": "build"
     },
     "files": [
       "electron/**/*",
-      "app/**/*",
+      "src/**/*",
       "package.json"
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico",
-      "artifactName": "InnovatiaLearning-Setup-${version}.${ext}"
+      "artifactName": "Innovatia-Learning-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
+      "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Innovatia Learning",
-      "license": "build/license.txt",
-      "uninstallDisplayName": "Innovatia Learning",
-      "deleteAppDataOnUninstall": false
-    },
-    "portable": {
-      "artifactName": "InnovatiaLearning-Portable-${version}.${ext}"
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     }
   }
 }
