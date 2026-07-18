@@ -1,0 +1,55 @@
+{
+  "name": "innovatia-learning",
+  "productName": "Innovatia Learning",
+  "version": "1.0.0",
+  "description": "Innovatia Digital Learning and Curriculum Management Platform - Year 1 interactive desktop edition (Terms 1 & 2, 2025/2026)",
+  "main": "electron/main.js",
+  "author": "Innovatia Learning",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win nsis",
+    "dist:win:portable": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.innovatia.learning",
+    "productName": "Innovatia Learning",
+    "copyright": "Copyright © 2026 Innovatia Learning",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "app/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "InnovatiaLearning-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Innovatia Learning",
+      "license": "build/license.txt",
+      "uninstallDisplayName": "Innovatia Learning",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "InnovatiaLearning-Portable-${version}.${ext}"
+    }
+  }
+}
