@@ -1,0 +1,47 @@
+name: Build Windows Installer
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Regenerate installer icon
+        run: python scripts/make_icon.py
+
+      - name: Build NSIS installer
+        run: npm run dist:win
+        env:
+          # unsigned build; remove when a code-signing certificate is configured
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InnovatiaLearning-Windows-Installer
+          path: |
+            release/InnovatiaLearning-Setup-*.exe
+            release/InnovatiaLearning-Setup-*.exe.blockmap
+          if-no-files-found: error
+
+      - name: Attach installer to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/InnovatiaLearning-Setup-*.exe

@@ -1,0 +1,22 @@
+Innovatia Learning - Year 1 Desktop Edition
+End User Licence Agreement
+
+1. This software is provided for use by the school, its staff, enrolled
+   learners and their parents/guardians for educational purposes.
+
+2. Child safety and privacy come first. The desktop edition stores learning
+   progress and safety reports locally on this computer only. No learner
+   data is transmitted over the internet by this application.
+
+3. The curriculum content included in this application is derived from the
+   school's approved Year 1 Term 1 and Term 2 topic lists for the 2025/2026
+   academic year and must be validated by the school's academic owner.
+
+4. You may not redistribute, resell or modify this software without the
+   written permission of the school and the software owner.
+
+5. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM,
+   DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+By installing this software you accept these terms.
